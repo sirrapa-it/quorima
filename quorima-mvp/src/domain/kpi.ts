@@ -70,7 +70,11 @@ export function computeDSCR(
   // Annualize from period
   const annualNoi = (noi12m / months) * 12;
 
+  // Alleen EXTERNE rente telt als schuldendienst. Intercompany r/c-rente wordt
+  // apart gerapporteerd: de bijbehorende hoofdsom zit niet in het leningregister,
+  // en je herfinanciert geen rekening-courant met je eigen groepsmaatschappij.
   const interest12m = pnl.totals.interestExpense;
+  const interestIntercompany12m = pnl.totals.interestExpenseIntercompany;
   // For loans, compute principal repayments per year from monthly schedule
   const principal12m = loans.reduce((sum, l) => sum + l.monthlyPrincipal * 12, 0);
 
@@ -87,6 +91,7 @@ export function computeDSCR(
     noi12m: roundTo(annualNoi, 0),
     debtService12m: roundTo(debtService12m, 0),
     interest12m,
+    interestIntercompany12m,
     principal12m,
     status,
     thresholds,

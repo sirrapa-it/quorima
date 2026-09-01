@@ -6,3 +6,9 @@
 # TELEGRAM_CHAT_ID=123456
 
 0 8 * * 1-5 /home/hermes/quorima/deploy/run-flash.sh >> /home/hermes/quorima/deploy/flash.log 2>&1
+
+# Factuurfeed (Hermes Gmail-pipeline -> Quorima dashboard).
+# De Gmail-runs draaien via de hermes-agent gateway om 09:00 en 16:00; deze
+# regels lezen kort daarna de nieuwste run-artifacts en schrijven
+# dashboard/data/invoice-overview.json. Read-only: raakt Gmail niet aan.
+45 9,16 * * * /usr/bin/node /home/hermes/quorima/deploy/build-invoice-feed.mjs --quiet >> /home/hermes/quorima/deploy/invoice-feed.log 2>&1

@@ -17,6 +17,9 @@
 }
 @media (prefers-color-scheme: dark){
   :root{ --surface:#0f172a; --card:#161f33; --line:#26304a; --text:#f7f8fb; --muted:#9aa3b8; --purple:#a78bda; }
+  /* De staleness-waarschuwing moet ook op donker leesbaar zijn — #b45309 is
+     te donker tegen de nachtachtergrond. */
+  .note-stale{color:#fbbf24}
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--surface);color:var(--text);
@@ -29,6 +32,10 @@ h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-0.01em}
 .sub{font-size:14px;color:var(--muted);margin:2px 0 0}
 .note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted);
   background:var(--card);border:0.5px solid var(--line);border-radius:10px;padding:10px 14px;margin:16px 0 0}
+/* Verouderde feed: de pipeline heeft niet ververst. Moet opvallen, want een
+   stille oude stand is gevaarlijker dan geen stand. */
+.note-stale{background:rgba(245,158,11,.10);border:0.5px solid var(--amber);
+  border-radius:10px;padding:10px 14px;color:#b45309}
 .metrics{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:22px}
 .metric{background:var(--card);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px}
 .metric .lab{font-size:13px;color:var(--muted)}
@@ -123,6 +130,19 @@ h2{font-size:14px;font-weight:700;color:var(--muted);margin:30px 0 10px;text-tra
 </div>
 <div class="foot" id="open-items-meta" style="margin-top:8px"></div>
 
+<h2>Openstaande facturen &middot; uit de mailbox (Hermes)</h2>
+<div class="foot" style="margin:4px 0 0">
+  Andere bron dan hierboven: dit zijn facturen die <b>binnenkomen per mail</b> en nog een
+  boekhoudroute of betaling nodig hebben &mdash; inclusief wat nog niet in Twinfield geboekt is.
+  De tegels hierboven tonen de <b>geboekte</b> stand. Het verschil is precies wat nog onderweg is.
+</div>
+<div class="metrics" style="margin:8px 0 0">
+  <div class="metric inv-tile" data-cat="monitor" role="button" tabindex="0"><div class="lab">Betaalmonitor</div><div class="val" id="inv-monitor" style="color:var(--amber)">—</div><div class="sub" id="inv-monitor-n">laden…</div></div>
+  <div class="metric inv-tile" data-cat="still-to-pay" role="button" tabindex="0"><div class="lab">Nog te betalen</div><div class="val" id="inv-still" style="color:var(--red)">—</div><div class="sub" id="inv-still-n"></div></div>
+  <div class="metric inv-tile" data-cat="incasso" role="button" tabindex="0"><div class="lab">Automatische incasso</div><div class="val" id="inv-incasso" style="color:var(--green)">—</div><div class="sub" id="inv-incasso-n"></div></div>
+</div>
+<div class="foot" id="invoice-meta" style="margin-top:8px"></div>
+
 <h2>Holding en werkmaatschappijen - must-watch KPIs</h2>
 <div class="cols">
   <div class="ent">
@@ -211,7 +231,13 @@ h2{font-size:14px;font-weight:700;color:var(--muted);margin:30px 0 10px;text-tra
     set('oi-receivable',eur(t.receivable_eur));set('oi-receivable-n',(t.receivable_count||0)+' debiteuren');
     set('oi-prepaid',eur((t.prepaid_payable_eur||0)+(t.prepaid_receivable_eur||0)));set('oi-prepaid-n',(t.prepaid_count||0)+' tegoeden');
     var src=d&&d.generated_at?'Bron: '+(d.source||'Twinfield')+' &middot; gegenereerd '+new Date(d.generated_at).toLocaleString('nl-NL'):'';
-    document.getElementById('open-items-meta').innerHTML=(sample?'<b>Voorbeelddata</b> &middot; ':'')+src+' &middot; klik een tegel voor detail &middot; <b>geboekte stand</b>: een betaling die nog niet in Twinfield is afgeletterd telt mee als openstaand.';
+    // Zelfde staleness-drempel als de KPI-feed: vanaf 4 dagen is er iets stuk.
+    var ts=d&&(d.generated_at||d.as_of), t=ts?new Date(ts).getTime():NaN;
+    var days=isNaN(t)?null:Math.floor((Date.now()-t)/86400000);
+    var stale=!sample&&days!=null&&days>3;
+    var meta=document.getElementById('open-items-meta');
+    if(meta)meta.className=stale?'foot note-stale':'foot';
+    document.getElementById('open-items-meta').innerHTML=(sample?'<b>Voorbeelddata</b> &middot; ':'')+(stale?'<b>&#9888;&#65039; '+days+' dagen oud &mdash; pipeline heeft niet ververst</b> &middot; ':'')+src+' &middot; klik een tegel voor detail &middot; <b>geboekte stand</b>: een betaling die nog niet in Twinfield is afgeletterd telt mee als openstaand.';
     var fc=document.getElementById('flag-count');if(fc)fc.textContent=document.querySelectorAll('#flags .flag').length;
   }
   [].slice.call(document.querySelectorAll('.oi-tile')).forEach(function(el){
@@ -229,6 +255,81 @@ h2{font-size:14px;font-weight:700;color:var(--muted);margin:30px 0 10px;text-tra
 })();
 </script>
 <script>
+// Factuurfeed (Hermes): facturen uit de mailbox die nog een route of betaling
+// nodig hebben. Bedrag en vervaldatum staan niet als veld in de bron maar als
+// vrije tekst in de mailbody — wat niet ondubbelzinnig te lezen was, blijft
+// leeg en wordt als "onbekend" getoond. Nooit een cijfer zonder bron.
+(function(){
+  var DATA=null;
+  var TITLES={'monitor':'Betaalmonitor','still-to-pay':'Nog te betalen','incasso':'Automatische incasso'};
+  function eur(n){return n==null?'onbekend':'€'+Math.round(n).toLocaleString('nl-NL');}
+  function eur2(n){return n==null?'onbekend':'€'+n.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function set(id,t){var el=document.getElementById(id);if(el)el.textContent=t;}
+  function rowsFor(cat){return ((DATA&&DATA.invoices)||[]).filter(function(r){return r.status===cat;});}
+  function sumOf(rows){return rows.reduce(function(t,r){return t+(r.amount_eur||0);},0);}
+  function openInv(cat){
+    var rows=rowsFor(cat);
+    var known=rows.filter(function(r){return r.amount_eur!=null;});
+    set('oi-modal-title','Facturen · '+TITLES[cat]);
+    document.getElementById('oi-modal-sub').innerHTML=
+      '<b>'+rows.length+' facturen &middot; '+eur2(sumOf(rows))+'</b>'+
+      '<span>bedrag bekend van '+known.length+' van '+rows.length+'</span>';
+    document.getElementById('oi-modal-body').innerHTML=rows.map(function(r){
+      // Een entiteit die alleen uit de mailbox volgt is een gok met een bron —
+      // markeren, zodat niemand er een boeking op baseert.
+      var ent=r.entity?(r.entity+(r.entity_confidence==='inferred-mailbox'?' (afgeleid)':'')):'entiteit onbekend';
+      var meta=[ent];
+      if(r.due_date)meta.push('verval '+r.due_date);
+      else if(r.mail_date)meta.push('mail '+r.mail_date);
+      if(r.mail_count>1)meta.push(r.mail_count+' mails');
+      if(r.note)meta.push(r.note);
+      var name=r.link?'<a href="'+r.link+'" target="_blank" rel="noopener">'+(r.supplier||'—')+'</a>':(r.supplier||'—');
+      return '<div class="oi-row"><div><div>'+name+'</div><div class="r-ent">'+meta.join(' &middot; ')+
+             (r.reference?'<br>'+r.reference:'')+'</div></div><div class="r-amt">'+eur2(r.amount_eur)+'</div></div>';
+    }).join('')||'<div class="oi-row">Geen facturen</div>';
+    document.getElementById('oi-modal').hidden=false;
+  }
+  function render(d){
+    DATA=d;
+    [['monitor','inv-monitor'],['still-to-pay','inv-still'],['incasso','inv-incasso']].forEach(function(p){
+      var rows=rowsFor(p[0]);
+      var known=rows.filter(function(r){return r.amount_eur!=null;}).length;
+      set(p[1],rows.length?eur(sumOf(rows)):'€0');
+      set(p[1]+'-n',rows.length+' facturen'+(known<rows.length?' · bedrag bekend van '+known:''));
+    });
+    var c=d.coverage||{};
+    // Zelfde staleness-drempel als de andere feeds: vanaf 4 dagen is er iets stuk.
+    var t=d.generated_at?new Date(d.generated_at).getTime():NaN;
+    var days=isNaN(t)?null:Math.floor((Date.now()-t)/86400000);
+    var stale=days!=null&&days>3;
+    var m=document.getElementById('invoice-meta');
+    if(!m)return;
+    m.className=stale?'foot note-stale':'foot';
+    var parts=[];
+    if(stale)parts.push('<b>&#9888;&#65039; '+days+' dagen oud — pipeline heeft niet ververst</b>');
+    parts.push('Bron: '+(d.source||'Hermes')+(d.source_run?' ('+d.source_run+')':''));
+    if(d.generated_at)parts.push('gegenereerd '+new Date(d.generated_at).toLocaleString('nl-NL'));
+    if(c.invoices!=null)parts.push('<b>bedrag bekend van '+(c.with_amount||0)+' van '+c.invoices+'</b>, vervaldatum van '+(c.with_due_date||0)+', entiteit hard bevestigd voor '+(c.with_entity_confirmed||0)+' (rest afgeleid uit de mailbox)');
+    if(c.oldest_mail_date)parts.push('oudste mail '+c.oldest_mail_date);
+    parts.push('klik een tegel voor detail');
+    m.innerHTML=parts.join(' &middot; ')+
+      '<br><b>Let op:</b> een factuur verdwijnt hier pas bij een Basecone-bevestiging. ' +
+      'Betaal je buiten die route om, dan blijft de post staan — dit is dus "ooit als te betalen gelabeld", niet "nu zeker onbetaald".';
+  }
+  [].slice.call(document.querySelectorAll('.inv-tile')).forEach(function(el){
+    var cat=el.getAttribute('data-cat');
+    el.addEventListener('click',function(){openInv(cat);});
+    el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openInv(cat);}});
+  });
+  function getJSON(u){return fetch(u,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();});}
+  getJSON('./data/invoice-overview.json').then(function(d){render(d);})
+    .catch(function(){
+      var m=document.getElementById('invoice-meta');
+      if(m)m.textContent='Geen factuurfeed bereikbaar — draai deploy/build-invoice-feed.mjs op Hermes.';
+    });
+})();
+</script>
+<script>
 // KPI-feed: vult de Vastgoed-kaart + connector/banner-status uit de live
 // (gitignored) kpi-overview.json. Valt terug op het .example (mock) en als
 // die ook ontbreekt blijft de statische mock in de HTML staan.
@@ -241,18 +342,41 @@ h2{font-size:14px;font-weight:700;color:var(--muted);margin:30px 0 10px;text-tra
   function mnd(n){return n==null?'—':n.toFixed(1).replace('.',',')+' mnd';}
   function set(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;}
   function dot(id,cls){var el=document.getElementById(id);if(el)el.className='dot '+(cls||'d-grey');}
+  // De flash-cron draait werkdagen 08:00. Een feed van vrijdag is maandagochtend
+  // legitiem ~3 dagen oud, dus pas vanaf 4 dagen is er echt iets stuk. In aug 2026
+  // stond het dashboard 3 weken op groen terwijl de pipeline elke dag faalde.
+  var STALE_AFTER_DAYS=3;
+  function ageInDays(d){
+    var ts=d&&(d.generated_at||d.as_of);
+    if(!ts)return null;
+    var t=new Date(ts).getTime();
+    if(isNaN(t))return null;
+    return (Date.now()-t)/86400000;
+  }
   function apply(d,sample){
     var live=!!(d&&d.twinfield_live)&&!sample;
-    var src=live?'live Twinfield '+(d.as_of||''):'mock';
+    var age=ageInDays(d);
+    var stale=live&&age!=null&&age>STALE_AFTER_DAYS;
+    var days=age==null?null:Math.floor(age);
+    var src=live?(stale?'Twinfield · VEROUDERD '+(d.as_of||''):'live Twinfield '+(d.as_of||'')):'mock';
     var bn=document.getElementById('banner-note');
-    if(bn&&live){
+    if(bn&&live&&!stale){
       bn.innerHTML='Vastgoed-KPI\'s komen uit een <b>live</b> Twinfield-feed (<code>data/kpi-overview.json</code>, '+(d.as_of||'')+'); overige entiteiten wachten nog op hun connector. Openstaande posten (crediteuren/debiteuren) komen uit Twinfield (<code>data/open-items.json</code>). Conform de CFO-regel: geen cijfer zonder bron.';
+    }
+    if(bn&&stale){
+      // Kleur de hele note-kaart, niet alleen de span erin (anders krijg je
+      // een doos-in-een-doos).
+      (bn.closest('.note')||bn).classList.add('note-stale');
+      bn.innerHTML='&#9888;&#65039; <b>Deze cijfers zijn '+days+' dagen oud</b> (laatste geslaagde run: '+(d.as_of||'onbekend')+'). De dagelijkse flash-pipeline heeft sindsdien niets ververst &mdash; behandel alles hieronder als een oude stand, niet als vandaag. Check <code>deploy/flash.log</code> op de VPS.';
     }
     if(d&&d.connectors_live!=null) set('connectors-live',d.connectors_live+' / '+(d.connectors_total||5));
     if(live){
       var pill=document.getElementById('pill-twinfield');
-      if(pill){pill.className='chip c-green';pill.textContent='Twinfield · live';}
-      set('snapshot-sub','Sirrapa Group Holding B.V. · Vastgoed live '+(d.as_of||''));
+      if(pill){
+        pill.className='chip '+(stale?'c-amber':'c-green');
+        pill.textContent=stale?'Twinfield · verouderd ('+days+'d)':'Twinfield · live';
+      }
+      set('snapshot-sub','Sirrapa Group Holding B.V. · Vastgoed '+(stale?'VEROUDERD — '+days+' dagen oud · ':'live ')+(d.as_of||''));
     }
     var vg=(d&&d.vastgoed)||{};
     if(vg.dscr){

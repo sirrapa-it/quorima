@@ -22,7 +22,10 @@ export interface DashboardFeed {
       status: string;
       noi12m: number;
       debtService12m: number;
+      /** rente op externe schuld — zit in debtService12m */
       interest12m: number;
+      /** intercompany r/c-rente — apart, telt NIET mee in debtService12m */
+      interestIntercompany12m: number;
       principal12m: number;
     };
     noi: {
@@ -41,7 +44,20 @@ export interface DashboardFeed {
   };
 }
 
-export function buildDashboardFeed(flash: VastgoedFlash, generatedAt: string): DashboardFeed {
+export interface BuildFeedOptions {
+  generatedAt: string;
+  /**
+   * Kwam deze feed uit een geslaagde Twinfield-call? De caller weet dat — hij
+   * heeft de adapter net gebruikt. Nooit hardcoden: het `live`-label op het
+   * dashboard is een bewering over de bron, geen constante.
+   */
+  live: boolean;
+}
+
+export function buildDashboardFeed(
+  flash: VastgoedFlash,
+  opts: BuildFeedOptions,
+): DashboardFeed {
   // JSON kan geen Infinity bevatten; onbekende repricing → null (front-end
   // toont dan "repricing-datum onbekend", net als de markdown-renderer).
   const repricing = Number.isFinite(flash.refi.earliestRepricingMonths)
@@ -50,11 +66,13 @@ export function buildDashboardFeed(flash: VastgoedFlash, generatedAt: string): D
 
   return {
     schema: "quorima.kpi-overview.v1",
-    generated_at: generatedAt,
+    generated_at: opts.generatedAt,
     as_of: flash.asOf,
-    source: "Quorima KPI engine v0.1 · Twinfield live",
-    twinfield_live: true,
-    connectors_live: 1,
+    source: opts.live
+      ? "Quorima KPI engine v0.1 · Twinfield live"
+      : "Quorima KPI engine v0.1 · mock",
+    twinfield_live: opts.live,
+    connectors_live: opts.live ? 1 : 0,
     connectors_total: 5,
     vastgoed: {
       dscr: {
@@ -63,6 +81,7 @@ export function buildDashboardFeed(flash: VastgoedFlash, generatedAt: string): D
         noi12m: flash.dscr.noi12m,
         debtService12m: flash.dscr.debtService12m,
         interest12m: flash.dscr.interest12m,
+        interestIntercompany12m: flash.dscr.interestIntercompany12m,
         principal12m: flash.dscr.principal12m,
       },
       noi: {
@@ -84,9 +103,9 @@ export function buildDashboardFeed(flash: VastgoedFlash, generatedAt: string): D
 /** Schrijft de feed naar `<dataDir>/kpi-overview.json` en geeft het pad terug. */
 export async function writeDashboardFeed(
   flash: VastgoedFlash,
-  opts: { dataDir: string; generatedAt: string },
+  opts: { dataDir: string; generatedAt: string; live: boolean },
 ): Promise<string> {
-  const feed = buildDashboardFeed(flash, opts.generatedAt);
+  const feed = buildDashboardFeed(flash, { generatedAt: opts.generatedAt, live: opts.live });
   const path = resolve(opts.dataDir, "kpi-overview.json");
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(feed, null, 2) + "\n", "utf-8");

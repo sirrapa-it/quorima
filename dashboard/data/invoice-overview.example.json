@@ -1,30 +1,47 @@
 {
   "schema": "quorima.invoice-overview.v1",
-  "generated_at": "2026-01-01T08:00:00+01:00",
+  "generated_at": "2026-09-01T18:51:49.000Z",
   "source": "voorbeeld / sample (geen echte data)",
-  "account": "voorbeeld@example.com",
+  "source_run": "gmail-finops-00000000-000000",
+  "accounts": ["voorbeeld@example.com"],
+  "coverage": {
+    "invoices": 2,
+    "with_amount": 1,
+    "with_due_date": 1,
+    "with_entity": 2,
+    "with_entity_confirmed": 1,
+    "oldest_mail_date": "2026-08-01"
+  },
   "invoices": [
     {
       "entity": "SVG",
+      "entity_confidence": "confirmed-discriminator",
       "office": "21007",
-      "supplier": "Voorbeeld Leverancier A",
-      "reference": "INV-0001",
+      "supplier": "Voorbeeld Leverancier B.V.",
+      "reference": "inv00000000.pdf",
       "amount_eur": 1234.56,
-      "due_date": "2026-01-15",
-      "status": "monitor",
+      "due_date": "2026-09-15",
+      "mail_date": "2026-08-01",
+      "status": "still-to-pay",
       "link": null,
-      "note": "placeholder — vervangen door de live Hermes-feed"
+      "note": null,
+      "account": "voorbeeld@example.com",
+      "mail_count": 1
     },
     {
-      "entity": "SGH",
-      "office": "21006",
-      "supplier": "Voorbeeld Leverancier B",
-      "reference": "draft-0000",
+      "entity": "SIT",
+      "entity_confidence": "inferred-mailbox",
+      "office": "21005",
+      "supplier": "Voorbeeld SaaS Inc.",
+      "reference": null,
       "amount_eur": null,
       "due_date": null,
-      "status": "basecone-draft",
+      "mail_date": "2026-08-20",
+      "status": "monitor",
       "link": null,
-      "note": "placeholder"
+      "note": "doorgestuurd naar Basecone",
+      "account": "voorbeeld@example.com",
+      "mail_count": 2
     }
   ]
 }

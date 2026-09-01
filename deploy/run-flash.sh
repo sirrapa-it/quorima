@@ -3,6 +3,7 @@
 # (dead-man's-switch, zelfde patroon als de Hermes Gmail-pipeline).
 #
 # Exit codes van de flash: 0 = ok · 2 = kritieke escalatie (wél gelukt) ·
+# 3 = gelukt maar digest gedegradeerd (cijfers vers, LLM-duiding mislukt) ·
 # anders = echte fout.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -23,9 +24,15 @@ notify() {
 OUT="$(npm run --silent flash 2>&1)"; CODE=$?
 TAIL="$(printf '%s\n' "$OUT" | tail -n 20)"
 
+# Bij een kritieke escalatie (2) kan de digest óók gedegradeerd zijn; die
+# melding staat bovenaan de markdown en valt buiten de tail, dus los meenemen.
+DEGRADED=""
+printf '%s\n' "$OUT" | grep -q "Digest gedegradeerd" && DEGRADED=" · ⚠️ LLM-duiding mislukt"
+
 case "$CODE" in
   0) STATUS="✅ Quorima daily flash OK" ;;
-  2) STATUS="🚨 Quorima flash — KRITIEKE escalatie (run gelukt)" ;;
+  2) STATUS="🚨 Quorima flash — KRITIEKE escalatie (run gelukt)${DEGRADED}" ;;
+  3) STATUS="⚠️ Quorima flash — cijfers vers, LLM-duiding mislukt (dashboard is bij)" ;;
   *) STATUS="❌ Quorima flash FAILED (exit $CODE)" ;;
 esac
 

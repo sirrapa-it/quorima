@@ -38,6 +38,7 @@
       "revenue": 177600,
       "operatingExpenses": 39800,
       "interestExpense": 140700,
+      "interestExpenseIntercompany": 0,
       "depreciation": 24000,
       "tax": 0,
       "netResult": -26900

@@ -128,35 +128,27 @@ async function main(): Promise<void> {
     escalations,
   };
 
-  // 6. Render the digest (LLM or deterministic)
-  let markdown: string;
-  if (args.noLlm) {
-    markdown = renderDeterministicFlash(flash);
-    log("  digest rendered (deterministic)");
-  } else {
-    const cfo = new CFOAgent();
-    log(`  calling ${cfo.provider}:${cfo.model}…`);
-    const out = await cfo.writeDailyFlash(flash);
-    markdown = out.markdown;
-    log(`  digest rendered (LLM, ${out.usage.inputTokens ?? "?"} in / ${out.usage.outputTokens ?? "?"} out tokens)`);
-  }
-
-  // 7. Persist
-  const outputDir = resolve(process.env.DIGEST_OUTPUT_DIR ?? "./output");
-  await mkdir(outputDir, { recursive: true });
-  const outputPath = resolve(outputDir, `flash-${todayISO()}.md`);
-  await writeFile(outputPath, markdown, "utf-8");
-  log(`  written: ${outputPath}`);
-
-  // 7b. Update the dashboard feeds (live runs only — never clobber the
-  //     gitignored live feeds with mock/dry-run data). The cron writes these
-  //     daily so the dashboard stays current.
+  // 6. Update de dashboard-feeds — data vóór narratief.
+  //
+  //     Bewust vóór het renderen van de digest: de cijfers zijn op dit punt
+  //     al binnen en berekend, dus een storing in de LLM-laag (rate limit,
+  //     lege credits, netwerk) mag het dashboard nooit meer op een oude
+  //     stand laten staan. Aug 2026 ging dat 16 runs lang mis.
+  //
+  //     Alleen bij live runs — nooit de gitignored feeds overschrijven met
+  //     mock/dry-run data.
   if (!args.mock) {
     const dataDir = process.env.DASHBOARD_DATA_DIR ?? resolve("../dashboard/data");
     const generatedAt = new Date().toISOString();
 
     const { writeDashboardFeed } = await import("../digest/dashboard-feed.js");
-    const feedPath = await writeDashboardFeed(flash, { dataDir, generatedAt });
+    const feedPath = await writeDashboardFeed(flash, {
+      dataDir,
+      generatedAt,
+      // Twinfield is aantoonbaar live: de P&L/leningen hierboven kwamen uit
+      // een geslaagde adapter-call. Geen hardcoded literal meer.
+      live: true,
+    });
     log(`  dashboard feed: ${feedPath}`);
 
     // Openstaande posten crediteuren + debiteuren over alle administraties.
@@ -177,16 +169,64 @@ async function main(): Promise<void> {
     log(`  open-items feed: ${oiPath} (${openItems.length} posten)`);
   }
 
-  // 8. Echo to stdout (so cron / pipe consumers can read it directly)
+  // 7. Render de digest (LLM of deterministisch).
+  //
+  //     De LLM schrijft alleen de *duiding* — de cijfers staan al vast. Valt
+  //     de provider uit, dan degraderen we naar de deterministische renderer
+  //     in plaats van de hele run te laten falen.
+  let markdown: string;
+  let digestDegraded = false;
+  if (args.noLlm) {
+    markdown = renderDeterministicFlash(flash);
+    log("  digest rendered (deterministic)");
+  } else {
+    const cfo = new CFOAgent();
+    log(`  calling ${cfo.provider}:${cfo.model}…`);
+    try {
+      const out = await cfo.writeDailyFlash(flash);
+      markdown = out.markdown;
+      log(`  digest rendered (LLM, ${out.usage.inputTokens ?? "?"} in / ${out.usage.outputTokens ?? "?"} out tokens)`);
+    } catch (err) {
+      digestDegraded = true;
+      // Provider-fouten zijn vaak meerregelige JSON; platslaan tot één
+      // leesbare regel die in een Telegram-melding past.
+      const reason = ((err as Error).message || "onbekende fout")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
+      log(`  ⚠ LLM-call mislukt (${cfo.provider}:${cfo.model}) — terugval op deterministische digest`);
+      log(`    ${reason}`);
+      markdown =
+        `> ⚠️ **Digest gedegradeerd** — de LLM-duiding is niet gelukt ` +
+        `(${cfo.provider}:${cfo.model}: ${reason}).\n` +
+        `> De cijfers hieronder komen ongewijzigd uit de KPI-engine en zijn wél vers.\n\n` +
+        renderDeterministicFlash(flash);
+    }
+  }
+
+  // 8. Persist
+  const outputDir = resolve(process.env.DIGEST_OUTPUT_DIR ?? "./output");
+  await mkdir(outputDir, { recursive: true });
+  const outputPath = resolve(outputDir, `flash-${todayISO()}.md`);
+  await writeFile(outputPath, markdown, "utf-8");
+  log(`  written: ${outputPath}`);
+
+  // 9. Echo to stdout (so cron / pipe consumers can read it directly)
   if (!args.quiet) {
     console.log("\n────────────────────────────────────────");
     console.log(markdown);
     console.log("────────────────────────────────────────\n");
   }
 
-  // Exit code 2 if any critical escalation fired (cron-monitor signal)
+  // Exit code 2 als een kritieke escalatie vuurde (cron-monitor signaal).
+  // Exit code 3 als de run zelf slaagde maar de digest gedegradeerd is —
+  // de cijfers staan vers op het dashboard, alleen de duiding ontbreekt.
+  // Code 2 wint: een covenant-escalatie is dringender dan een missende LLM.
   if (escalations.some((e) => e.level === "critical")) {
     process.exit(2);
+  }
+  if (digestDegraded) {
+    process.exit(3);
   }
 }
 

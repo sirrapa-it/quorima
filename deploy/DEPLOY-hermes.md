@@ -68,9 +68,23 @@ sudo cp deploy/quorima-dashboard.service /etc/systemd/system/
 sudo systemctl enable --now quorima-dashboard
 ```
 Serveert **alleen** `dashboard/` op `127.0.0.1:8787` (geen repo-root → geen
-`.env`-lek). Laat Hermes/Freya de feed schrijven naar
-`dashboard/data/invoice-overview.json` (gitignored); bij afwezigheid valt het
-dashboard terug op `invoice-overview.example.json`.
+`.env`-lek).
+
+## 5b. Factuurfeed uit de Gmail-pipeline
+
+`deploy/build-invoice-feed.mjs` zet de run-artifacts van de Hermes Gmail-pipeline
+om naar `dashboard/data/invoice-overview.json` (gitignored). **Read-only**: het
+leest `~/.hermes/run-artifacts/gmail-finops-*/` van schijf, gebruikt geen
+Gmail-tokens en muteert niets aan de pipeline.
+
+```bash
+node deploy/build-invoice-feed.mjs          # eenmalig, toont dekkingscijfers
+```
+
+De Gmail-runs draaien via de hermes-agent gateway om 09:00 en 16:00; de cron-regel
+in `deploy/quorima-flash.cron` leest kort daarna de nieuwste artifacts. Ontbreekt
+de feed, dan meldt het dashboard dat expliciet — het valt bewust **niet** terug op
+de voorbeelddata.
 
 ## 6. Cloudflare Tunnel + Access
 ```bash

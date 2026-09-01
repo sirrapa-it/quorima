@@ -1,0 +1,9 @@
+{
+  "_comment": "Kopieer naar invoice-feed.config.json (gitignored) en vul de echte mailboxen in. Terugval-mapping: welke entiteit hoort bij welke ontvangende mailbox. Volgens de unified spec is dit confidence 'inferred' — genoeg voor een overzicht, niet genoeg om op te forwarden.",
+  "entity_by_mailbox": {
+    "facturen@voorbeeld-vastgoed.nl": "SVG",
+    "facturen@voorbeeld-ict.nl": "SIT",
+    "admin@voorbeeld-holding.nl": "SGH",
+    "invoices@voorbeeld-uk.co.uk": "SPG"
+  }
+}

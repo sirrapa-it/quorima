@@ -351,6 +351,16 @@ export class TwinfieldAccountingPort implements AccountingPort {
     if (totalBalance === 0) return [];
 
     // Gewogen rente uit de rentelasten in de P&L (rolling 12m).
+    //
+    // `interestExpense` bevat alléén EXTERNE rente — intercompany r/c-rente
+    // zit in `interestExpenseIntercompany` en hoort hier niet, omdat de
+    // r/c-hoofdsom ook niet in `totalBalance` zit (zie isLoanPrincipalAccount).
+    // Teller en noemer moeten over dezelfde schuld gaan.
+    //
+    // Let op: `totalBalance` is het EINDsaldo na cumulatieve aflossing, terwijl
+    // de rente over het jaargemiddelde is opgebouwd. Bij een aflopende lening
+    // overschat dat de rentevoet licht. Structureel op te lossen zodra er
+    // run-historie is (punt 10) — tot dan een bekende, kleine overschatting.
     const pnl = await this.getPnL(entityId, { year: new Date().getFullYear(), period: "FY" });
     const portfolioRate = pnl.totals.interestExpense / totalBalance;
 
@@ -394,6 +404,7 @@ function parsePnLFromBrowseXml(
   let revenue = 0;
   let opex = 0;
   let interest = 0;
+  let interestIntercompany = 0;
   let depreciation = 0;
   let tax = 0;
 
@@ -407,6 +418,7 @@ function parsePnLFromBrowseXml(
     switch (category) {
       case "revenue": revenue += amount; break;
       case "interest": interest += amount; break;
+      case "interest-intercompany": interestIntercompany += amount; break;
       case "depreciation": depreciation += amount; break;
       case "tax": tax += amount; break;
       default: opex += amount;
@@ -423,9 +435,12 @@ function parsePnLFromBrowseXml(
       revenue,
       operatingExpenses: opex,
       interestExpense: interest,
+      interestExpenseIntercompany: interestIntercompany,
       depreciation,
       tax,
-      netResult: revenue - opex - interest - depreciation - tax,
+      // Intercompany-rente is wél een echte last voor het resultaat, alleen
+      // geen schuldendienst — zie de toelichting bij PnLReport.totals.
+      netResult: revenue - opex - interest - interestIntercompany - depreciation - tax,
     },
   };
 }

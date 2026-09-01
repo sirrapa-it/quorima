@@ -3,7 +3,33 @@
 // de echte rekeningnamen bepalen de KPI-categorie. Bevestigd op office 21007
 // (Vastgoed — Chaletpark De Wierde), waar leningen in 16xx staan i.p.v. 07/08.
 
-export type PnlCategory = "revenue" | "interest" | "depreciation" | "tax" | "opex" | "ignore";
+export type PnlCategory =
+  | "revenue"
+  | "interest"
+  | "interest-intercompany"
+  | "depreciation"
+  | "tax"
+  | "opex"
+  | "ignore";
+
+/**
+ * Rentelast op de rekening-courant met groepsmaatschappijen.
+ *
+ * Moet apart van de externe rente blijven: `isLoanPrincipalAccount` sluit r/c
+ * uit het leningregister uit, dus als deze rente wél in de teller zou zitten
+ * krijg je rente zonder bijbehorende hoofdsom in de noemer — WACC en DSCR
+ * worden dan structureel te ongunstig. (Gemeten sep 2026 op office 21007:
+ * €6.931 van €73.584 totale rente, goed voor ~1 procentpunt WACC.)
+ */
+export function isIntercompanyInterestAccount(name = ""): boolean {
+  const n = name.toLowerCase().trim();
+  return (
+    n.includes("r/c") ||
+    n.includes("rekening-courant") ||
+    n.includes("rekening courant") ||
+    n.includes("groepsmaatschappij")
+  );
+}
 
 /**
  * Classificeer een grootboekrekening voor de P&L op basis van code + naam.
@@ -18,7 +44,9 @@ export function classifyPnl(code: string, name = ""): PnlCategory {
   if (!/^[4567]/.test(code)) return "ignore"; // geen P&L-kostenrekening
   if (n.startsWith("afschrijving")) return "depreciation";
   if (n.includes("vennootschapsbelasting")) return "tax";
-  if (n.startsWith("rente") && !n.includes("belasting")) return "interest";
+  if (n.startsWith("rente") && !n.includes("belasting")) {
+    return isIntercompanyInterestAccount(n) ? "interest-intercompany" : "interest";
+  }
   return "opex";
 }
 

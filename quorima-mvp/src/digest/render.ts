@@ -25,7 +25,12 @@ export function renderDeterministicFlash(input: VastgoedFlash): string {
   lines.push(
     `- ${STATUS_EMOJI[input.dscr.status]} **DSCR** ${input.dscr.value} — ` +
       `NOI ${eu(input.dscr.noi12m)}/jr / debt service ${eu(input.dscr.debtService12m)}/jr ` +
-      `(rente ${eu(input.dscr.interest12m)} + aflossing ${eu(input.dscr.principal12m)})`,
+      `(rente ${eu(input.dscr.interest12m)} + aflossing ${eu(input.dscr.principal12m)})` +
+      // Intercompany-rente telt niet mee in de schuldendienst, maar verzwijgen
+      // zou de rentelast kleiner doen lijken dan hij is.
+      (input.dscr.interestIntercompany12m
+        ? ` · daarnaast ${eu(input.dscr.interestIntercompany12m)} intercompany r/c-rente (buiten debt service)`
+        : ""),
   );
   if (input.noi.budgetEur != null) {
     const variance = input.noi.varianceVsBudget ?? 0;

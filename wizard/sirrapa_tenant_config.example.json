@@ -42,7 +42,7 @@
       "role": "consolidation_parent",
       "note": "Eigen administratie (office 21006) voor mgmt fees / intercompany / consolidatie. De top-level 'holding'-blok blijft de consolidatie-root (kvk, fiscal year, gaap); deze entry maakt de holding-administratie een monitored entity met eigen KPI's en connectors, net als de werkmaatschappijen.",
       "connectors": {
-        "accounting": { "vendor": "Twinfield", "office_code": "21006", "oauth_status": "pending" },
+        "accounting": { "vendor": "Twinfield", "office_code": "21006", "oauth_status": "connected" },
         "bank_feed": { "vendor": "Ponto", "oauth_status": "pending" }
       },
       "manual_inputs_required": [
@@ -63,7 +63,7 @@
       "gaap": "nl-gaap",
       "template": "ICT-Solo-Freelance",
       "connectors": {
-        "accounting": { "vendor": "Twinfield", "office_code": "21005", "oauth_status": "pending" },
+        "accounting": { "vendor": "Twinfield", "office_code": "21005", "oauth_status": "connected" },
         "crm": { "vendor": "HubSpot", "oauth_status": "pending", "tier": "free" }
       },
       "manual_inputs_required": [],
@@ -88,7 +88,7 @@
       "gaap": "nl-gaap",
       "template": "Property-Income-Geared",
       "connectors": {
-        "accounting": { "vendor": "Twinfield", "office_code": "21007", "vastgoed_module_active": false, "oauth_status": "pending" },
+        "accounting": { "vendor": "Twinfield", "office_code": "21007", "vastgoed_module_active": false, "oauth_status": "connected" },
         "property_management": { "vendor": "Twinfield-derived + manual lease summary" },
         "bank_feed": { "vendor": "Ponto", "oauth_status": "pending" }
       },

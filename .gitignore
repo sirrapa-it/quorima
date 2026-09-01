@@ -41,3 +41,9 @@ deploy/telegram.env
 
 # Claude Code local settings / tooling (launch.json, settings, etc.)
 .claude/
+
+# Runtime-logs van de cron-wrappers (flash.log, invoice-feed.log)
+*.log
+
+# Mailbox->entiteit mapping voor de factuurfeed (echte mailboxen; publieke repo)
+deploy/invoice-feed.config.json

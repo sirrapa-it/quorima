@@ -51,8 +51,20 @@ export interface PnLReport {
   lines: PnLLine[];
   totals: {
     revenue: number;
+    /** Operationele kosten — excl. rente, afschrijving en belasting (NOI-basis). */
     operatingExpenses: number;
+    /**
+     * Rente op EXTERNE schuld (Mogelijk, Collin, bank). Dit is de teller van
+     * WACC en zit in de DSCR-debt-service. Intercompany-rente staat apart.
+     */
     interestExpense: number;
+    /**
+     * Rente op rekening-courant met groepsmaatschappijen. Bewust gescheiden:
+     * de bijbehorende hoofdsom zit niet in het leningregister, dus meetellen
+     * zou WACC en DSCR vertekenen (rente zonder schuld in de noemer). Wel
+     * onderdeel van het netto resultaat, niet van de schuldendienst.
+     */
+    interestExpenseIntercompany: number;
     depreciation: number;
     tax: number;
     netResult: number;
@@ -125,7 +137,10 @@ export interface DSCRResult {
   value: number;
   noi12m: number;
   debtService12m: number;
+  /** Rente op externe schuld — onderdeel van de debt service. */
   interest12m: number;
+  /** Intercompany r/c-rente — apart getoond, telt NIET mee in debt service. */
+  interestIntercompany12m: number;
   principal12m: number;
   status: "green" | "yellow" | "red";
   thresholds: { green: number; yellow: number; red: number };
