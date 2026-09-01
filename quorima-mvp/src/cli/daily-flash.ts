@@ -104,7 +104,13 @@ async function main(): Promise<void> {
   log(`  KPIs computed:`);
   log(`    DSCR ${dscr.value} (${dscr.status})`);
   log(`    NOI €${noi.monthly.toFixed(0)}/mo (${noi.status})`);
-  log(`    refi WACC ${(refi.wacc * 100).toFixed(2)}% · runway ${refi.earliestRepricingMonths.toFixed(1)}mo (${refi.status})`);
+  // Zonder leningadministratie is er geen repricing-datum en is de runway
+  // Infinity; `toFixed` maakt daar "Infinitymo" van. Net als de feed (null) en
+  // de escalatie-tekst tonen we hier expliciet dat het onbekend is.
+  const runway = Number.isFinite(refi.earliestRepricingMonths)
+    ? `${refi.earliestRepricingMonths.toFixed(1)}mo`
+    : "onbekend";
+  log(`    refi WACC ${(refi.wacc * 100).toFixed(2)}% · runway ${runway} (${refi.status})`);
 
   // 4. Evaluate escalations
   const escalations = evaluateVastgoedEscalations(dscr, noi, refi, {
