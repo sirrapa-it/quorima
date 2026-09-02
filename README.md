@@ -51,17 +51,29 @@ Live data is niet hetzelfde als correcte data. Voordat je op een cijfer stuurt:
   van de lezing), maar de implementatie bleek correct: `8004 Omzet Chaletpark` is
   huurinkomst en `7000 Inkoop goederen` is een exploitatiekost. Vastgelegd in de
   operationaliseringstabel in `kpis/KPIs_per_werkmaatschappij.md`.
-  **De negatieve NOI (−€792/mnd) en DSCR (−0,106) zijn dus echte cijfers**, geen
-  rekenfout: de exploitatie draait vóór rente al verlies.
+  ⚠️ **De bijbehorende cijfers zijn op 2 september verschoven** door een aparte
+  fout in de parser (zie hieronder). Niet −€792/mnd en −0,106, maar **+€3.626/mnd
+  en DSCR +0,484**.
 - ~~**WACC is overschat**~~ — *opgelost.* Intercompany r/c-rente is uit zowel de
   WACC-teller als de DSCR-schuldendienst gehaald en wordt apart gerapporteerd
   (`interestIntercompany12m`). WACC 11,08% → 10,04%, debt service €96.822 →
   €89.891. Resteert een kleine overschatting doordat de rente over het
   jaargemiddelde wordt gedeeld door het eindsaldo; op te lossen zodra er
   run-historie is.
+- ⚠️ **Openstaande vraag: `7000 Inkoop goederen` staat netto €26.508 CREDIT**
+  over de rollende 12 maanden. Tot 2 september maakte een `Math.abs` in de
+  parser daar een kostenpost van; met het teken intact is het een bate en
+  springt de DSCR van −0,106 naar +0,484. De parserfix is onomstreden, maar
+  het blijft de vraag of dat creditsaldo bedrijfseconomisch een bate ís —
+  bijvoorbeeld een naar de balans geactiveerde inkoop waarvan de tegenboeking
+  wél in het venster valt en de oorspronkelijke kost niet. Behandel de NOI als
+  onbevestigd tot dit is nagekeken.
 - **Repricing-datums ontbreken** (geen leningadministratie), dus de "maanden tot
   herfinanciering"-helft van KPI 3 is altijd onbekend en de escalatie draait
   puur op WACC.
-- **Er wordt geen historie bewaard**, dus KPI-regels die twee perioden
-  vergelijken (DSCR 2 kwartalen op rij, NOI YoY) kunnen niet vuren.
-- **Geen unit-tests** op de KPI- en classificatie-laag.
+- ~~**Er wordt geen historie bewaard**~~ — *opgelost.* Elke run legt zijn KPI's
+  vast in `dashboard/data/kpi-history.jsonl`, met een backfill vanaf 17 juni.
+  De covenant-regel (DSCR twee kwartalen op rij) kan daardoor vanaf 1 oktober
+  vuren; NOI YoY vanaf medio 2027.
+- ~~**Geen unit-tests**~~ — *opgelost.* 93 tests via het ingebouwde `node:test`
+  (`npm test`), inclusief regressietests op het echte 21007-rekeningschema.

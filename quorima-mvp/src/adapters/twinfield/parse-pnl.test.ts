@@ -144,16 +144,20 @@ test("een rekening zonder bekende naam valt terug op de code", () => {
 });
 
 /**
- * Regressie op de echte septemberstand van office 21007. Deze totalen voeden
- * DSCR −0,106 en NOI −€792/mnd; wijzigt de parser, dan hoort dat hier te
- * botsen en niet pas op het dashboard.
+ * Regressie op de echte septemberstand van office 21007, met de RAUWE saldi
+ * zoals Twinfield ze teruggeeft (debet +, credit −).
+ *
+ * Let op de eerste regel: 7000 "Inkoop goederen" staat netto €26.508,25
+ * CREDIT. Met het oude Math.abs werd dat een kostenpost van +26.508,25, wat de
+ * opex op 43.431,35 bracht en de DSCR op −0,106. Met het teken intact is de
+ * opex −9.588,31 en de DSCR +0,484. Eén grootboekrekening, €53.017 verschil.
  */
-test("regressie: de echte 21007-cijfers komen er hetzelfde uit", () => {
+test("regressie: de echte RAUWE 21007-saldi (2 sep 2026)", () => {
   const pnl = parsePnLFromBrowseXml(
     browseXml([
       ["8000", -11475.35],
       ["8004", -22450.08],
-      ["7000", 26508.25],
+      ["7000", -26508.25], // netto CREDIT — zie de toelichting hierboven
       ["7700", 4657.5],
       ["4745", 4278.39],
       ["4805", 2820.98],
@@ -169,11 +173,11 @@ test("regressie: de echte 21007-cijfers komen er hetzelfde uit", () => {
       ["4677", 71.0],
       ["4382", 32.5],
       ["4658", 2.2],
-      ["4898", 1.58],
+      ["4898", -1.58],
       ["4612", 60904.11],
       ["4623", 5726.66],
-      ["4610", 17.67],
-      ["4601", 5.35],
+      ["4610", -17.67],
+      ["4601", -5.35],
       ["4631", 6930.58],
     ]),
     names({
@@ -196,7 +200,8 @@ test("regressie: de echte 21007-cijfers komen er hetzelfde uit", () => {
   );
   const round2 = (n: number) => Math.round(n * 100) / 100;
   assert.equal(round2(pnl.totals.revenue), 33925.43);
-  assert.equal(round2(pnl.totals.operatingExpenses), 43431.35);
-  assert.equal(round2(pnl.totals.interestExpense), 66653.79);
+  assert.equal(round2(pnl.totals.operatingExpenses), -9588.31,
+    "negatief, want 7000 staat netto credit — met Math.abs kwam hier 43.431,35 uit");
+  assert.equal(round2(pnl.totals.interestExpense), 66607.75);
   assert.equal(round2(pnl.totals.interestExpenseIntercompany), 6930.58);
 });

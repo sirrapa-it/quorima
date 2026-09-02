@@ -64,10 +64,16 @@ Twee beslissingen die niet uit het grootboek volgen en dus hier horen:
 2. **`7000 Inkoop goederen` is een exploitatiekost** van het park, geen
    kostprijs van doorverkoop. Telt dus mee als operationele kost.
 
-Gevolg: de NOI is op dit moment **echt negatief** (−€792/mnd, rollend 12m per
-september 2026) en de DSCR van −0,106 is een reëel signaal, geen artefact van de
-berekening. Een negatieve DSCR is geen dekkingsgraad meer maar betekent dat de
-exploitatie vóór rente al verlies draait.
+> ⚠️ **Bijgesteld 2 september 2026.** Bovenstaande afbakening staat, maar de
+> uitkomst is verschoven door een parserfout die los van deze definitie stond:
+> een `Math.abs` telde een netto **credit**saldo op `7000 Inkoop goederen`
+> (−€26.508) als positieve kostenpost. Met het teken intact is de NOI
+> **+€3.626/mnd** en de DSCR **+0,484**, in plaats van −€792 en −0,106.
+>
+> Openstaand: klopt het bedrijfseconomisch dat dit creditsaldo als bate telt?
+> Bij een rollend 12-maandsvenster kan een tegenboeking binnen het venster
+> vallen terwijl de oorspronkelijke kost erbuiten ligt; dan is de NOI
+> kunstmatig hoog. Tot dat is nagekeken is de NOI **onbevestigd**.
 
 > Wijzigt het rekeningschema, of komt er een handelsactiviteit bij die op
 > dezelfde rekeningen boekt, dan moet deze tabel mee — anders verschuift de KPI
