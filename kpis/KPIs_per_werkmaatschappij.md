@@ -42,6 +42,37 @@ Holding: **Sirrapa Group Holding B.V.** (100% Armand Parris)
 | 2 | **Net Operating Income (NOI), maandelijks** | Bruto huur − operationele kosten (excl. rente, afschrijving, belasting) | Boekhouding + property mgmt | Groen ≥ budget · Geel 90–99% · Rood < 90% | > 10% NOI-uitval YoY → COO-investigatie (vacancy / kosten) |
 | 3 | **Gewogen rentelast & herfinancieringsruimte** | (a) WACC schuld %, (b) Maanden tot eerstvolgende rente-/aflos-trigger of fixed-period einde | Leningenoverzicht | Groen: WACC < 5% én > 18 mnd vrij · Geel: WACC 5–7% of 6–18 mnd · Rood: WACC > 7% of < 6 mnd | < 6 maanden tot herfinanciering bij DSCR < 1.0 → CFO/CEO crisis-protocol |
 
+### Operationalisering op het Twinfield-rekeningschema (bevestigd 2026-09-02)
+
+De formules hierboven zijn kort; dit is hoe ze op office 21007 concreet gerekend
+worden. Vastgelegd omdat de review van 1 september terecht constateerde dat
+"bruto huur" en "operationele kosten" meerdere lezingen toelieten — met een
+DSCR-uitkomst tussen −0,36 en +0,19 afhankelijk van de interpretatie.
+
+| Post | Rekeningen | Telt mee in |
+|---|---|---|
+| **Bruto huur** | alle `8xxx` — zowel `8000 Omzet Verhuur` als `8004 Omzet Chaletpark de Wierde` | NOI (teller) |
+| **Operationele kosten** | alle `4xxx`–`7xxx` behalve rente, afschrijving en VpB — **inclusief `7000 Inkoop goederen`** | NOI (aftrek) |
+| **Rente (schuldendienst)** | kostenrekening met naam beginnend op "rente", niet-belasting, **niet-intercompany** | DSCR (noemer) |
+| **Intercompany r/c-rente** | naam bevat "r/c" / "rekening-courant" / "groepsmaatschappij" | apart gerapporteerd, **buiten** DSCR en WACC |
+| **Aflossing** | `afl. lopend jr ...` | DSCR (noemer) |
+
+Twee beslissingen die niet uit het grootboek volgen en dus hier horen:
+
+1. **`8004 Omzet Chaletpark de Wierde` is huurinkomst** (verhuur van plaatsen en
+   chalets), geen handelsomzet. Telt dus volledig mee als bruto huur.
+2. **`7000 Inkoop goederen` is een exploitatiekost** van het park, geen
+   kostprijs van doorverkoop. Telt dus mee als operationele kost.
+
+Gevolg: de NOI is op dit moment **echt negatief** (−€792/mnd, rollend 12m per
+september 2026) en de DSCR van −0,106 is een reëel signaal, geen artefact van de
+berekening. Een negatieve DSCR is geen dekkingsgraad meer maar betekent dat de
+exploitatie vóór rente al verlies draait.
+
+> Wijzigt het rekeningschema, of komt er een handelsactiviteit bij die op
+> dezelfde rekeningen boekt, dan moet deze tabel mee — anders verschuift de KPI
+> stilletjes van betekenis.
+
 ### Waarom deze drie en niet "RevPAR" of "IRR per project"
 - Eerdere aanname (holiday rentals) was niet correct — het is commerciële verhuur met business contracts.
 - IRR is een development-metric; de zwaartekracht ligt nu bij exploitatie + financiering.

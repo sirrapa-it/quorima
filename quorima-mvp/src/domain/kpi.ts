@@ -19,7 +19,17 @@ const DEFAULT_REFI_YELLOW_MONTHS = 18;
  * Net Operating Income — bruto huurinkomsten minus operationele kosten,
  * exclusief rente, afschrijving en belasting.
  *
- * Volgt de definitie uit Quorima KPI's per werkmaatschappij (Vastgoed NL).
+ * Volgt de definitie uit Quorima KPI's per werkmaatschappij (Vastgoed NL). Welke
+ * grootboekrekeningen onder "bruto huur" en "operationele kosten" vallen is
+ * geen detail maar bepaalt de sign van de uitkomst; die afbakening staat in de
+ * operationaliseringstabel van dat document en wordt uitgevoerd door
+ * `classifyPnl` in de Twinfield-adapter.
+ *
+ * Let op: `monthly` kan negatief zijn. Dat is geen foutwaarde — het betekent dat
+ * de exploitatie vóór financieringslasten verlies draait, en het maakt de
+ * afgeleide DSCR eveneens negatief. Een negatieve DSCR is dan geen
+ * dekkingsgraad meer; behandel hem als "geen dekking", niet als een ratio die
+ * je met 1,0 vergelijkt.
  */
 export function computeNOI(pnl: PnLReport, budgetEurMonthly: number | null): NOIResult {
   const months = periodLengthInMonths(pnl);

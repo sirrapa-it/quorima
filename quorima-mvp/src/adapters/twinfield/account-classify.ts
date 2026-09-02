@@ -37,6 +37,19 @@ export function isIntercompanyInterestAccount(name = ""): boolean {
  * - rente (debt service): kostenrekening met naam die met "rente" begint,
  *   behalve belastingrente (bv. "Rente leningen Mogelijk", "Rente lening Collin")
  * - afschrijving / vpb apart; de rest is operationele kosten (voor NOI).
+ *
+ * BEVESTIGD 2026-09-02 — twee gevallen die de KPI-uitkomst bepalen en niet uit
+ * de rekeningcode volgen. Beide zijn door de eigenaar vastgesteld, niet
+ * afgeleid; zie de operationaliseringstabel in
+ * `kpis/KPIs_per_werkmaatschappij.md`:
+ *
+ *   8004 "Omzet Chaletpark de Wierde"  → huurinkomst, geen handelsomzet
+ *   7000 "Inkoop goederen"             → exploitatiekost, geen kostprijs
+ *                                        van doorverkoop
+ *
+ * Daarmee is de negatieve NOI op office 21007 een reëel signaal en geen
+ * classificatiefout. Verandert het rekeningschema, of komt er handel bij op
+ * dezelfde rekeningen, dan moet die tabel (en deze aanname) herzien worden.
  */
 export function classifyPnl(code: string, name = ""): PnlCategory {
   const n = name.toLowerCase().trim();

@@ -120,9 +120,10 @@ Conform de CFO-regel "nooit een cijfer zonder bron":
 - **Openstaande facturen** komen uit de Hermes Gmail-pipeline via
   `data/invoice-overview.json` (zie "Factuur-feed"), ververst kort na de
   Gmail-runs van 09:00 en 16:00. Andere bron en ander moment dan de Twinfield-posten.
-- **De KPI-cijfers zijn indicatief, niet definitief.** De NOI-definitie in de code
-  wijkt af van `kpis/KPIs_per_werkmaatschappij.md` — zie "Bekende beperkingen" in
-  de hoofd-`README.md`. (De WACC-overschatting is inmiddels opgelost.)
+- **De KPI-afbakening is vastgelegd** (2 september): welke grootboekrekeningen
+  onder bruto huur en operationele kosten vallen staat in de
+  operationaliseringstabel van `kpis/KPIs_per_werkmaatschappij.md`. De negatieve
+  NOI en DSCR zijn reële cijfers, geen rekenfout. WACC-overschatting opgelost.
 
 ## Bronnen
 

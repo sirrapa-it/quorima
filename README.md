@@ -8,7 +8,7 @@ Agentic C-level board (SaaS) voor **Sirrapa Group Holding B.V.** (100% Armand Pa
 |---|---|---|
 | `agent_prompts/` | system-prompts: Chief of Staff + CEO/CFO/COO/CMO | 📋 prompts; alleen CFO draait als code |
 | `quorima-mvp/` | werkende CFO daily-flash (TS): ports/adapters, KPI-engine, escalatie, digest | ✅ draait dagelijks live op Hermes |
-| `kpis/` | KPI-definities per werkmaatschappij, UK-acquisitie en holding | 📋 gedefinieerd; NOI-definitie wijkt af van de code (zie beperkingen) |
+| `kpis/` | KPI-definities per werkmaatschappij, UK-acquisitie en holding | ✅ gedefinieerd + geoperationaliseerd op het rekeningschema |
 | `connectors/` | Twinfield (OAuth2) + Xero/HubSpot/Ponto/TrueLayer setup-notities | Twinfield ✅ live, rest 📋 pending |
 | `wizard/` | integrator-wizard blueprint, tenant-config, 5 entity-templates | 📋 spec |
 | `dashboard/` | management-cockpit, live op `dev.quorima.ai` achter Cloudflare Access | ✅ live Twinfield-feeds |
@@ -42,15 +42,17 @@ Ze koppelen via de Twinfield office-codes: Hermes duwt facturen de boeken in (Ba
   daily-flash op mock, geen keys nodig); open `dashboard/index.html` via de
   Launch preview.
 
-### Bekende beperkingen (stand 1 september 2026)
+### Bekende beperkingen (stand 2 september 2026)
 
 Live data is niet hetzelfde als correcte data. Voordat je op een cijfer stuurt:
 
-- **De NOI-definitie in de code wijkt af van `kpis/KPIs_per_werkmaatschappij.md`.**
-  De KPI-doc zegt "bruto huur − operationele kosten"; de implementatie neemt álle
-  8xxx-omzet minus álle niet-rente kosten, inclusief `7000 Inkoop goederen`.
-  Daardoor staat DSCR op dit moment negatief. Welke rekeningen meetellen is nog
-  niet vastgelegd — behandel DSCR/NOI als indicatief tot dat gebeurd is.
+- ~~**De NOI-definitie wijkt af van de KPI-doc**~~ — *opgehelderd 2 september.*
+  De afbakening was dubbelzinnig (DSCR-uitkomst tussen −0,36 en +0,19 afhankelijk
+  van de lezing), maar de implementatie bleek correct: `8004 Omzet Chaletpark` is
+  huurinkomst en `7000 Inkoop goederen` is een exploitatiekost. Vastgelegd in de
+  operationaliseringstabel in `kpis/KPIs_per_werkmaatschappij.md`.
+  **De negatieve NOI (−€792/mnd) en DSCR (−0,106) zijn dus echte cijfers**, geen
+  rekenfout: de exploitatie draait vóór rente al verlies.
 - ~~**WACC is overschat**~~ — *opgelost.* Intercompany r/c-rente is uit zowel de
   WACC-teller als de DSCR-schuldendienst gehaald en wordt apart gerapporteerd
   (`interestIntercompany12m`). WACC 11,08% → 10,04%, debt service €96.822 →
