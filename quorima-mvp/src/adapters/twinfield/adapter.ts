@@ -30,6 +30,7 @@ import type {
 } from "../../types.js";
 import type { AccountingPort, TxFilter } from "../../ports/accounting.js";
 import { getValidAccessContext, type OAuthClientConfig } from "./oauth.js";
+import { withRateLimitRetry } from "./retry.js";
 import {
   classifyPnl,
   isCumulativeRepaymentAccount,
@@ -69,20 +70,27 @@ export class TwinfieldAccountingPort implements AccountingPort {
   }
 
   private async callProcessXml(office: string, xmlRequest: string): Promise<string> {
-    const { accessToken, clusterUrl } = await getValidAccessContext(
-      this.config,
-      this.config.tokenStorePath,
+    // Twinfield knijpt af met een 429; zonder retry valt de hele dagelijkse run
+    // om op een fout die zich voordoet als "Invalid XML". Zie retry.ts.
+    return withRateLimitRetry(
+      async () => {
+        const { accessToken, clusterUrl } = await getValidAccessContext(
+          this.config,
+          this.config.tokenStorePath,
+        );
+        const client = await this.ensureProcessClient(clusterUrl);
+        client.clearSoapHeaders();
+        client.addSoapHeader(
+          { Header: { AccessToken: accessToken, CompanyCode: office } },
+          "",
+          "tw",
+          "http://www.twinfield.com/",
+        );
+        const [result] = await client.ProcessXmlStringAsync({ xmlRequest });
+        return result.ProcessXmlStringResult as string;
+      },
+      { onRetry: (msg) => console.error(`  ⏳ ${msg}`) },
     );
-    const client = await this.ensureProcessClient(clusterUrl);
-    client.clearSoapHeaders();
-    client.addSoapHeader(
-      { Header: { AccessToken: accessToken, CompanyCode: office } },
-      "",
-      "tw",
-      "http://www.twinfield.com/",
-    );
-    const [result] = await client.ProcessXmlStringAsync({ xmlRequest });
-    return result.ProcessXmlStringResult as string;
   }
 
   /**
