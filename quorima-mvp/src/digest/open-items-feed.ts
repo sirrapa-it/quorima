@@ -12,7 +12,28 @@ const SHORT: Record<string, string> = {
   "sirrapa-vastgoed": "SVG",
   "sirrapa-ict": "ICT",
   "sirrapa-holding": "SGH",
+  // SPG boekt op Xero en komt (nog) niet uit de Twinfield-adapter, maar staat
+  // hier zodat de code niet stilletjes de ruwe entity-id gaat tonen zodra die
+  // connector wel wordt aangesloten.
+  "sirrapa-property-group": "SPG",
 };
+
+/**
+ * Twinfield office per entiteit, uit dezelfde env-variabelen als de adapter.
+ *
+ * Eerder werd de office uit de eerste openstaande post van die entiteit
+ * gehaald, met "" als terugval. Een entiteit zonder openstaande posten kreeg
+ * dan een lege office-code op het dashboard — precies op het moment dat er
+ * niets te zien is, verdween ook het label.
+ */
+function officeFor(entityId: string): string {
+  const byId: Record<string, string | undefined> = {
+    "sirrapa-vastgoed": process.env.TWINFIELD_OFFICE_VASTGOED ?? "21007",
+    "sirrapa-ict": process.env.TWINFIELD_OFFICE_ICT ?? "21005",
+    "sirrapa-holding": process.env.TWINFIELD_OFFICE_HOLDING ?? "21006",
+  };
+  return byId[entityId] ?? "";
+}
 
 interface FeedRow {
   entity: string; // korte code (SVG/ICT/SGH)
@@ -85,8 +106,8 @@ export function buildOpenItemsFeed(
     return {
       entity: shortFor(e.id),
       entityName: e.legalName,
-      office:
-        items.find((i) => i.entityId === e.id)?.office ?? "",
+      // Uit de vaste mapping, niet uit de eerste post die we toevallig zagen.
+      office: items.find((i) => i.entityId === e.id)?.office ?? officeFor(e.id),
       payable_eur: sumItems(ap),
       receivable_eur: sumItems(ar),
     };

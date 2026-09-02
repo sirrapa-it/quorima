@@ -402,7 +402,7 @@ export class TwinfieldAccountingPort implements AccountingPort {
 // Voor de MVP zijn dit minimal-effort regex-based parsers. In productie
 // vervangen we ze door een proper XML lib (fast-xml-parser) plus tests.
 
-function parsePnLFromBrowseXml(
+export function parsePnLFromBrowseXml(
   xml: string,
   names: Map<string, string>,
   entityId: EntityId,
@@ -421,8 +421,15 @@ function parsePnLFromBrowseXml(
     const category = classifyPnl(account, name);
     if (category === "ignore") continue;
     // Opbrengsten staan credit (valuesigned negatief) → positief maken;
-    // kosten staan debet (positief).
-    const amount = category === "revenue" ? -signed : Math.abs(signed);
+    // kosten staan debet (positief) en houden hun teken.
+    //
+    // Bewust GEEN Math.abs op de kostenkant: een kostenrekening kan over de
+    // periode netto credit staan (een creditnota, een teruggedraaide boeking,
+    // een te hoge accrual die is bijgesteld). Dat is per saldo een bate en
+    // hoort de opex te verlagen. Math.abs maakte er een positieve kostenpost
+    // van en overschatte de kosten dus precies in het geval waarin er iets
+    // ongewoons met een rekening was gebeurd.
+    const amount = category === "revenue" ? -signed : signed;
     switch (category) {
       case "revenue": revenue += amount; break;
       case "interest": interest += amount; break;
