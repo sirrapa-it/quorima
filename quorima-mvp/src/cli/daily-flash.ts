@@ -112,16 +112,55 @@ async function main(): Promise<void> {
     : "onbekend";
   log(`    refi WACC ${(refi.wacc * 100).toFixed(2)}% · runway ${runway} (${refi.status})`);
 
-  // 4. Evaluate escalations
+  // 4. Evaluate escalations — met de runhistorie erbij, zodat de regels die
+  //    perioden vergelijken (covenant, NOI YoY) echt kunnen vuren. Ontbreekt de
+  //    historie, dan blijven ze uit: liever niet escaleren dan op een aanname.
+  const dataDir = process.env.DASHBOARD_DATA_DIR ?? resolve("../dashboard/data");
+  const { readHistory, dscrBelowOneForConsecutiveQuarters, noiYoYChange } =
+    await import("../digest/history.js");
+  // Bij een mock-run bewust géén echte historie: mock-cijfers vergelijken met
+  // live waarnemingen levert onzin op.
+  const history = args.mock ? [] : await readHistory(dataDir);
+  const twoQuartersBelowOne = dscrBelowOneForConsecutiveQuarters(history, 2, today);
+  const yoy = noiYoYChange(history, today);
+  log(
+    `  historie: ${history.length} runs` +
+      (history.length ? ` (${history[0]?.as_of} → ${history[history.length - 1]?.as_of})` : "") +
+      ` · DSCR <1 twee kwartalen op rij: ${twoQuartersBelowOne ? "ja" : "nee"}` +
+      (yoy ? ` · NOI YoY ${yoy.changePct.toFixed(1)}%` : " · NOI YoY nog niet vergelijkbaar"),
+  );
+
   const escalations = evaluateVastgoedEscalations(dscr, noi, refi, {
     recipients: {
       cfo: [process.env.DIGEST_RECIPIENT ?? "armand.parris@sirrapagroup.com"],
       ceo: [process.env.DIGEST_RECIPIENT ?? "armand.parris@sirrapagroup.com"],
       coo: [process.env.DIGEST_RECIPIENT ?? "armand.parris@sirrapagroup.com"],
     },
-    dscrBelowOneForTwoQuartersInRow: false, // TODO: load from history
+    dscrBelowOneForTwoQuartersInRow: twoQuartersBelowOne,
+    noiYoYChangePct: yoy?.changePct ?? null,
   });
   log(`  escalations: ${escalations.length} (${escalations.map((e) => e.level).join(", ") || "none"})`);
+
+  // 4b. Is dit nieuws? Tussen 17 juni en 1 september vuurden 39 van de 39
+  //     geslaagde runs een identieke kritieke escalatie. Daardoor viel niet op
+  //     dat er 16 keer op rij een storingsmelding tussendoor kwam. De toestand
+  //     blijft elke dag in de digest staan, maar de Telegram-melding wordt
+  //     alleen luid als er écht iets verandert.
+  const { escalationFingerprint } = await import("../domain/escalation.js");
+  const fingerprint = escalationFingerprint(escalations, dscr, noi, refi);
+  const previous = [...history].reverse().find((h) => h.as_of !== todayISO() && h.fingerprint);
+  const unchanged = previous?.fingerprint === fingerprint;
+  // `since` rolt door zolang de toestand gelijk blijft; bij een wijziging
+  // begint de teller vandaag opnieuw.
+  const since = unchanged ? (previous?.since ?? previous?.as_of ?? todayISO()) : todayISO();
+  if (unchanged) {
+    const days = Math.round((Date.parse(todayISO()) - Date.parse(since)) / 86400000);
+    log(`[quorima] escalatie-status: ongewijzigd sinds ${since} (${days} dagen)`);
+  } else if (previous) {
+    log(`[quorima] escalatie-status: GEWIJZIGD t.o.v. ${previous.as_of}`);
+  } else {
+    log("[quorima] escalatie-status: geen vergelijkbare vorige run");
+  }
 
   // 5. Build the canonical flash payload
   const flash: VastgoedFlash = {
@@ -144,7 +183,6 @@ async function main(): Promise<void> {
   //     Alleen bij live runs — nooit de gitignored feeds overschrijven met
   //     mock/dry-run data.
   if (!args.mock) {
-    const dataDir = process.env.DASHBOARD_DATA_DIR ?? resolve("../dashboard/data");
     const generatedAt = new Date().toISOString();
 
     const { writeDashboardFeed } = await import("../digest/dashboard-feed.js");
@@ -173,6 +211,20 @@ async function main(): Promise<void> {
       asOf: todayISO(),
     });
     log(`  open-items feed: ${oiPath} (${openItems.length} posten)`);
+
+    // Runhistorie: append-only, zodat KPI-regels die perioden vergelijken
+    // (DSCR 2 kwartalen op rij, NOI YoY) een basis hebben. Mag de run nooit
+    // laten falen — historie is waardevol, maar minder dan de dagelijkse cijfers.
+    try {
+      const { appendHistory, buildHistoryRecord } = await import("../digest/history.js");
+      const hPath = await appendHistory(
+        buildHistoryRecord(flash, generatedAt, { fingerprint, since }),
+        { dataDir },
+      );
+      log(`  historie: ${hPath}`);
+    } catch (err) {
+      log(`  ⚠ historie niet weggeschreven: ${(err as Error).message}`);
+    }
   }
 
   // 7. Render de digest (LLM of deterministisch).

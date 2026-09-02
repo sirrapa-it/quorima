@@ -15,6 +15,11 @@ export interface EscalationContext {
   };
   /** True als DSCR al twee opeenvolgende kwartalen onder 1.0 staat (geladen uit historie) */
   dscrBelowOneForTwoQuartersInRow?: boolean;
+  /**
+   * NOI-verandering in procent t.o.v. ongeveer een jaar geleden, uit de
+   * runhistorie. Null als er nog geen vergelijkbare waarneming is.
+   */
+  noiYoYChangePct?: number | null;
 }
 
 export function evaluateVastgoedEscalations(
@@ -71,8 +76,21 @@ export function evaluateVastgoedEscalations(
     });
   }
 
-  // Rule 3 — NOI YoY-drop > 10% (dit zou normaal vergelijking met vorige periode vergen,
-  // hier alleen warning bij rood t.o.v. budget)
+  // Rule 3 — NOI-uitval. De KPI-doc noemt twee triggers: >10% uitval YoY
+  // (COO-onderzoek) en onderprestatie t.o.v. budget. De YoY-variant kon lang
+  // niet vuren omdat er geen historie was; sinds die er is, is dit de primaire
+  // regel. De budgetvariant blijft als er wél een budget geconfigureerd is.
+  if (ctx.noiYoYChangePct != null && ctx.noiYoYChangePct < -10) {
+    out.push({
+      level: "warning",
+      rule: "vastgoed.noi.yoy_drop",
+      message:
+        `NOI ${ctx.noiYoYChangePct.toFixed(1)}% t.o.v. een jaar geleden ` +
+        `(nu €${fmt(noi.monthly)}/mnd). COO-onderzoek: vacancy of stijgende OpEx?`,
+      recipients: [...ctx.recipients.cfo, ...ctx.recipients.coo],
+    });
+  }
+
   if (noi.status === "red" && noi.varianceVsBudget != null) {
     out.push({
       level: "warning",
@@ -86,6 +104,31 @@ export function evaluateVastgoedEscalations(
   }
 
   return out;
+}
+
+/**
+ * Stabiele vingerafdruk van de escalatietoestand.
+ *
+ * Bedoeld om te zien of er sinds de vorige run iets is veránderd, niet of er
+ * iets aan de hand is. Bewust zonder bedragen: de DSCR schuift dagelijks een
+ * paar duizendsten en dat is geen nieuws. Alleen welke regels vuren, op welk
+ * niveau, en de health-status van de drie KPI's.
+ *
+ * Aanleiding: tussen 17 juni en 1 september vuurden 39 van de 39 geslaagde runs
+ * een identieke kritieke escalatie. Een alarm dat elke dag hetzelfde zegt is
+ * geen alarm meer — daardoor vielen 16 opeenvolgende storingsmeldingen niet op.
+ */
+export function escalationFingerprint(
+  escalations: Escalation[],
+  dscr: DSCRResult,
+  noi: NOIResult,
+  refi: RefiRunwayResult,
+): string {
+  const rules = escalations
+    .map((e) => `${e.level}:${e.rule}`)
+    .sort()
+    .join(",");
+  return `${rules}|dscr=${dscr.status}|noi=${noi.status}|refi=${refi.status}`;
 }
 
 function fmt(n: number): string {

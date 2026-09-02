@@ -47,3 +47,6 @@ deploy/telegram.env
 
 # Mailbox->entiteit mapping voor de factuurfeed (echte mailboxen; publieke repo)
 deploy/invoice-feed.config.json
+
+# KPI-runhistorie (echte DSCR/NOI/schuld over tijd)
+dashboard/data/kpi-history.jsonl

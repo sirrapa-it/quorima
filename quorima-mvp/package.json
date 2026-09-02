@@ -6,12 +6,13 @@
   "main": "dist/cli/daily-flash.js",
   "scripts": {
     "build": "tsc",
+    "test": "tsx --test src/**/*.test.ts",
+    "test:smoke": "tsx src/cli/daily-flash.ts --mock --no-llm --quiet",
     "flash": "tsx src/cli/daily-flash.ts",
     "flash:mock": "tsx src/cli/daily-flash.ts --mock",
     "flash:dry-run": "tsx src/cli/daily-flash.ts --mock --no-llm",
     "twinfield:auth": "tsx src/cli/twinfield-auth.ts",
-    "twinfield:test": "tsx src/cli/twinfield-test.ts",
-    "test:smoke": "tsx src/cli/daily-flash.ts --mock --no-llm --quiet"
+    "twinfield:test": "tsx src/cli/twinfield-test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

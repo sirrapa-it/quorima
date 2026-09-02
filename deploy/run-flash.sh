@@ -29,9 +29,19 @@ TAIL="$(printf '%s\n' "$OUT" | tail -n 20)"
 DEGRADED=""
 printf '%s\n' "$OUT" | grep -q "Digest gedegradeerd" && DEGRADED=" · ⚠️ LLM-duiding mislukt"
 
+# Is de escalatie nieuws, of staat dezelfde vlag er al weken? Een 🚨 dat elke
+# dag identiek is, is geen alarm meer — precies waardoor de 16 storingen van
+# augustus onopgemerkt bleven. De melding komt er altijd (dead-man's-switch),
+# maar alleen een échte verandering krijgt het alarmicoon.
+UNCHANGED="$(printf '%s\n' "$OUT" | sed -n 's/^\[quorima\] escalatie-status: ongewijzigd \(.*\)$/\1/p' | head -1)"
+
 case "$CODE" in
   0) STATUS="✅ Quorima daily flash OK" ;;
-  2) STATUS="🚨 Quorima flash — KRITIEKE escalatie (run gelukt)${DEGRADED}" ;;
+  2) if [ -n "$UNCHANGED" ]; then
+       STATUS="🔁 Quorima flash — kritieke stand ${UNCHANGED}${DEGRADED}"
+     else
+       STATUS="🚨 Quorima flash — KRITIEKE escalatie GEWIJZIGD${DEGRADED}"
+     fi ;;
   3) STATUS="⚠️ Quorima flash — cijfers vers, LLM-duiding mislukt (dashboard is bij)" ;;
   *) STATUS="❌ Quorima flash FAILED (exit $CODE)" ;;
 esac
