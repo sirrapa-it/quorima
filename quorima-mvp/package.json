@@ -6,7 +6,7 @@
   "main": "dist/cli/daily-flash.js",
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "tsx --test $(find src -name \"*.test.ts\" | sort)",
     "test:smoke": "tsx src/cli/daily-flash.ts --mock --no-llm --quiet",
     "flash": "tsx src/cli/daily-flash.ts",
     "flash:mock": "tsx src/cli/daily-flash.ts --mock",
